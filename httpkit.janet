@@ -6,22 +6,6 @@
   (uri/parse-query 
     (string/join (string/split "+" d) "%20")))
 
-(defn- is-ctl-char
-  [s]
-  (def c (s 0))
-  (or (and (>= c 0) (<= c 31))
-      (= c 127)))
-
-(defn- is-cookie-octet
-  [s]
-  (def c (s 0))
-  (or
-    (= c 0x21)
-    (and (>= c 0x23) (<= c 0x2b))
-    (and (>= c 0x2d) (<= c 0x3a))
-    (and (>= c 0x3c) (<= c 0x5b))
-    (and (>= c 0x5d) (<= c 0x7e))))
-
 # https://tools.ietf.org/html/rfc2616
 # https://tools.ietf.org/html/rfc6265
 (def- cookie-header-peg ~{
@@ -30,15 +14,19 @@
    :obs-fold "\r\n"
    :WSP (set " \t")
    :cookie-string (sequence :cookie-pair (any (sequence "; " :cookie-pair)))
-   :cookie-pair (sequence :cookie-name "=" :cookie-value)
-   :cookie-value (choice
-                   (capture  (any :cookie-octet))
-                   # XXX do we need to unescape within the quotes?
-                   (sequence "\"" (capture (any :cookie-octet)) "\""))
-   :cookie-name (capture :token)
-   :cookie-octet (drop (cmt (capture 1) ,is-cookie-octet))
+   :cookie-pair   (sequence :cookie-name "=" :cookie-value)
+   :cookie-value  (choice
+                    (capture  (any :cookie-octet))
+                      # XXX do we need to unescape within the quotes?
+                      (sequence "\"" (capture (any :cookie-octet)) "\""))
+   :cookie-name   (capture :token)
+   :cookie-octet  (choice "\x21"
+                    (range "\x23\x2b")
+                    (range "\x2d\x3a")
+                    (range "\x3c\x5b")
+                    (range "\x5d\x7e"))
    :token (some (sequence (not (choice :CTL :separator)) 1))
-   :CTL (drop (cmt (capture 1) ,is-ctl-char))
+   :CTL (choice 127 (range "\x00\x1f"))
    :separator (set "()<>@,;:\\\"/[]?={} \t")
 })
 
