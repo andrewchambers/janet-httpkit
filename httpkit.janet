@@ -78,3 +78,8 @@
       :lax    "; SameSite=Lax"
       :strict "; SameSite=Strict"
       "; SameSite")))
+
+(defn redirect
+  [url]
+  @{:status 302
+    :headers @{"Location" url}})
